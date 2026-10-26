@@ -1,0 +1,2 @@
+import {loadConfig} from '../src/config.ts';
+export const config=loadConfig({PUBLIC_ORIGIN:'https://youtube-drive-mcp.vercel.app',OWNER_EMAIL:'shaterguy@gmail.com',YOUTUBE_CHANNEL_ID:'UCrTwN67Kw-1cX8BKGbryQag',DATABASE_URL:'postgresql://fixture:fixture@localhost/fixture?sslmode=require',BETTER_AUTH_SECRET:'fixture-only-test-auth-secret-at-least-32-bytes',TOKEN_ENCRYPTION_KEY:Buffer.alloc(32,7).toString('base64url'),GOOGLE_CLIENT_ID:'fixture.apps.googleusercontent.com',GOOGLE_CLIENT_SECRET:'fixture-only-not-a-real-secret'});

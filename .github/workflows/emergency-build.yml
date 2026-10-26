@@ -1,0 +1,45 @@
+name: Emergency source verification
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact source commit to verify (omit to use this workflow commit)
+        required: false
+        type: string
+  push:
+    branches: ['ci-fallback/**']
+permissions:
+  contents: read
+concurrency:
+  group: emergency-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Select exact source
+        id: source
+        env:
+          INPUT_SHA: ${{ inputs.source_sha }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          candidate="${INPUT_SHA:-$EVENT_SHA}"
+          [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          echo "sha=$candidate" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Read back source
+        env:
+          EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"

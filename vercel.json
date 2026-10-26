@@ -1,0 +1,1 @@
+{"rewrites":[{"source":"/((?!api$).*)","destination":"/api"}],"functions":{"api/index.ts":{"maxDuration":300}},"outputDirectory":"public","installCommand":"npm ci --ignore-scripts --no-audit --no-fund"}

@@ -1,0 +1,36 @@
+Command: npm test && npm run typecheck && npm run build
+Node: v24.22.1
+Exit code: 0
+Final output:
+✔ expired credentials refresh once across concurrent requests and preserve an omitted refresh token (2618.591983ms)
+✔ a replacement refresh token and time-based grant expiry persist before returning access (1671.947371ms)
+✔ invalid_grant marks only the Google connection; transient failures retain the active grant (3464.53894ms)
+✔ service OAuth callback cannot consume a different owner session state (1458.829329ms)
+✔ wrong stored YouTube channel cannot be used for an upload (1417.535168ms)
+✔ simultaneous 401 responses share the already refreshed credential rather than rotating it again (1515.703382ms)
+✔ real MCP OAuth refresh survives expired or deleted web sessions and service reauthorization state (85.973081ms)
+✔ title-only update preserves mutable snippet properties and leaves status untouched (11.664547ms)
+✔ status-only update preserves license/embedding/statistics without re-sending snippet (1.108232ms)
+✔ main Drive bytes reach separate YouTube channel role; lost completion probes same session without duplicate bytes (2390.515487ms)
+✔ a changed source stops an existing job before sending media or starting a resumable session (1547.424014ms)
+✔ resumable Range means next byte; absent Range restarts at zero (1.390247ms)
+✔ upload scheduling explicitly uses private and a future ISO publishAt (0.924261ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12460.982717
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> youtube-drive-mcp@0.1.0-dev1 typecheck
+> tsc --noEmit
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> youtube-drive-mcp@0.1.0-dev1 build
+> tsc
+
+
