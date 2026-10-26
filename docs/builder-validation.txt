@@ -2,6 +2,7 @@ Command: npm test && npm run typecheck && npm run build
 Node: v24.22.1
 Exit code: 0
 Final output:
+Test-only follow-up: node --test tests/upload-integration.test.ts && npm run typecheck, exit 0. Three transfer tests pass, including first-create concurrency and 308 partial offset recovery. Product source unchanged from 87012717f18fbbb53ed0d801538ecaad19f5b1ef; the original complete-suite/build evidence remains applicable.
 ✔ expired credentials refresh once across concurrent requests and preserve an omitted refresh token (2618.591983ms)
 ✔ a replacement refresh token and time-based grant expiry persist before returning access (1671.947371ms)
 ✔ invalid_grant marks only the Google connection; transient failures retain the active grant (3464.53894ms)

@@ -12,3 +12,9 @@ Assumptions: personal single-owner deployment, existing provider credentials pro
 Validation: secret-free unit/integration fixtures, PostgreSQL-compatible PGlite tests, TypeScript build, then separate verification. Evidence is NEWLY_REQUIRED because this is a new repository.
 APPLICABLE_PREVENTION_RULES: NONE for first implementation; PR-009 applies if only bookkeeping remains.
 Scope: this repository only. No existing video changes, actual uploads, DriveWorker source or database changes by builder.
+
+## Orchestrator acceptance mapping
+
+AC01 main-only MCP identity; AC02 private main Drive reads; AC03 separate channel-account binding to UCrTwN67Kw-1cX8BKGbryQag; AC04 durable refresh including concurrent/401/missing replacement/transient behavior; AC05 Drive→YouTube completion/resume/idempotency; AC06 OAuth grant/signing/vault continuity across deployment and expired/deleted browser sessions; AC07 protected /mcp challenge/discovery and account/transfer UI.
+
+Tests: core.test.ts→AC01/SAFE; database.test.ts→AC03/AC04; upload-integration.test.ts→AC02/AC03/AC05; offline-grant.test.ts→AC06 actual library refresh/logout; service.test.ts→metadata non-regression; deployed endpoint checks→AC07.
