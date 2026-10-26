@@ -17,6 +17,8 @@ Google OAuth callbacks to register on the application's web OAuth client:
 
 Enable Google Drive API and YouTube Data API v3 on this OAuth client's Google Cloud project. Use an **In production** Google OAuth audience for ongoing access. Google's Testing audience may issue grants that expire after seven days. A time-based grant expiry is retained and displayed when Google supplies it.
 
+Public Google OAuth branding pages are available without signing in: homepage `/`, privacy information `/privacy`, and service terms `/terms`. They describe the implemented account separation, encrypted credential/job storage and memory-only video transfer; account-specific connection status remains behind login.
+
 ## Connection continuity
 
 MCP OAuth grants, rotating refresh tokens and signing keys live in Postgres. Google service tokens live in a separate AES-256-GCM vault with owner/provider/purpose binding. Keep the database and encryption/authentication secrets unchanged across deployments.

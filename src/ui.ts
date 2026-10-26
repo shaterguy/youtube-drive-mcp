@@ -22,9 +22,19 @@ export function createUi(auth:Auth,config:Config,providers:Providers){
  return async(request:Request):Promise<Response>=>{
   const u=new URL(request.url);const path=u.pathname;
   if(request.method==='GET'){
+   if(path==='/privacy')return page('개인정보 처리 안내 · Privacy Policy',`<p>YouTube Drive MCP는 개인 운영자가 자신의 Google Drive 자료를 별도로 승인한 YouTube 채널로 전송하고 관리하는 개인용 서비스입니다.</p>
+    <section><h2>처리하는 정보와 목적</h2><p>Google 로그인 식별자와 이메일, 로그인 세션 및 MCP 연결 승인정보를 처리합니다. Google API 권한의 연속성을 유지하기 위해 서비스별 인증 토큰을 암호화하여 저장합니다. 선택한 원본 파일의 메타데이터와 업로드 작업 상태도 중단 후 재개와 중복 전송 방지를 위해 Neon Postgres에 저장합니다.</p>
+    <p>사용자가 요청한 Drive 영상 바이트는 Vercel 서버의 청크 메모리를 경유하여 YouTube로 전송됩니다. 서버의 지속적인 파일 저장소에는 영상을 저장하지 않습니다. Google, Vercel, Neon의 인프라를 사용하며, 요청한 기능을 수행하는 범위에서 각 인프라가 정보를 처리합니다.</p></section>
+    <section><h2>정보의 사용과 보관</h2><p>개인정보를 광고, 판매 또는 모델 학습 목적으로 사용하지 않습니다. Google API에서 받은 정보의 사용은 <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>의 Limited Use 요건을 준수합니다. 저장한 정보는 로그인, 승인한 API 기능의 연속성 및 업로드 작업 복구를 위해 보관합니다.</p></section>
+    <section><h2>권한 철회와 삭제 문의</h2><p>Google 서비스 권한은 <a href="https://myaccount.google.com/connections">Google 계정의 제3자 연결 관리</a>에서 철회할 수 있습니다. 웹페이지 로그아웃은 해당 웹 로그인 세션을 종료하며 Google 서비스 권한이나 독립된 MCP 연결 승인을 자동으로 철회하지 않습니다. Google 권한이 철회되거나 만료되면 해당 서비스의 연결을 다시 승인하여 복구합니다.</p>
+    <p>저장된 연결정보나 작업 데이터의 삭제가 필요하면 개인 운영자에게 <a href="mailto:${escape(config.ownerEmail)}">${escape(config.ownerEmail)}</a>로 요청할 수 있습니다. 이 페이지는 자동 데이터 삭제 기능을 제공하지 않습니다.</p></section><p><a href="/">서비스 홈</a> · <a href="/terms">이용 안내</a></p>`);
+   if(path==='/terms')return page('이용 안내 · Terms of Use',`<p>YouTube Drive MCP는 승인된 개인 계정 소유자가 자신의 Google Drive와 YouTube 채널을 연결하여 사용하는 개인용 도구입니다. 메인계정의 Drive 접근 권한과 채널계정의 YouTube 권한은 각각 승인하여 연결합니다.</p>
+    <section><h2>파일 전송과 영상 관리</h2><p>사용자가 승인한 파일 전송과 영상 관리 요청을 수행하며, 영상은 요청에서 명시한 공개 상태에 따라 업로드합니다. 예약 공개, 제목·설명·썸네일·재생목록 변경도 사용자가 요청한 범위에서 처리합니다. 중단된 전송은 저장된 동일 작업을 이어서 처리합니다.</p></section>
+    <section><h2>연결과 운영 조건</h2><p>Google API의 권한·할당량·영상 처리 상태와 Vercel의 실행시간, Neon의 데이터베이스 가용성 등 외부 서비스의 운영 조건이 적용됩니다. 액세스 토큰의 일반적인 만료는 자동 갱신으로 처리합니다. 외부 서비스에서 권한을 철회하거나 승인이 만료된 경우에는 해당 서비스의 연결을 다시 승인하여 복구해야 합니다.</p></section>
+    <p>데이터 처리와 삭제 문의 방법은 <a href="/privacy">개인정보 처리 안내</a>에서 확인할 수 있습니다.</p><p><a href="/">서비스 홈</a> · <a href="/privacy">개인정보 처리 안내</a></p>`);
    if(path==='/'||path==='/sign-in'){
     const errorOnly=[...u.searchParams.keys()].every(k=>['error','error_description'].includes(k));const query=await signed(errorOnly?'':u.search.slice(1),true);
-    return page('YouTube Drive MCP',`<p>MCP 로그인 계정은 <strong>${escape(config.ownerEmail)}</strong>입니다. Drive와 YouTube의 서비스 연결은 로그인 후 각각 설정합니다.</p><form action="/ui/sign-in"><button>메인계정으로 Google 로그인</button></form><p><small>ChatGPT MCP 주소: ${escape(config.resource)}</small></p>`,query);
+    return page('YouTube Drive MCP',`<p>개인 운영자의 Google Drive 파일을 별도로 승인한 YouTube 채널로 전송하고 관리하는 도구입니다. 비공개 Drive 자료도 원본 계정의 권한으로 읽고, 영상은 연결한 채널계정의 권한으로 업로드합니다.</p><p>MCP 로그인은 운영자의 메인계정을 사용합니다. Drive와 YouTube의 서비스 연결은 로그인 후 각각 설정합니다.</p><form action="/ui/sign-in"><button>메인계정으로 Google 로그인</button></form><p><a href="/privacy">개인정보 처리 안내 · Privacy Policy</a> · <a href="/terms">이용 안내 · Terms of Use</a></p><p><small>ChatGPT MCP 주소: ${escape(config.resource)}</small></p>`,query);
    }
    const current=await ownerSession(auth,config,request);
    if(path==='/google/callback'){

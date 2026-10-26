@@ -17,7 +17,7 @@ export function createRuntime(config:Config,pool:Pool){const auth=createAuth(con
   if(path==='/health'&&request.method==='GET'){await pool.query('SELECT 1');return noStore(Response.json({service:'youtube-drive-mcp',version:VERSION,status:'alive',database:'ready',mcp:config.resource}));}
   if(path==='/mcp'){if(request.method!=='POST')return noStore(new Response(null,{status:405,headers:{Allow:'POST'}}));return noStore(await mcp(await bounded(request)));}
   const methods=AUTH_ROUTES[path];if(methods){if(!methods.includes(request.method))return noStore(new Response(null,{status:405,headers:{Allow:methods.join(', ')}}));return noStore(await auth.handler(await bounded(request)));}
-  if(['/', '/sign-in','/connect','/consent','/google/callback'].includes(path)||path.startsWith('/ui/'))return noStore(await ui(request));
+  if(['/', '/sign-in','/privacy','/terms','/connect','/consent','/google/callback'].includes(path)||path.startsWith('/ui/'))return noStore(await ui(request));
   throw new AppError('NOT_FOUND',404);
  }catch(error){return noStore(Response.json({error:errorCode(error)},{status:error instanceof AppError?error.status:503}));}}};
 }
