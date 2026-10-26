@@ -9,7 +9,7 @@ export function createServer(service:Service,scopes:Set<string>){
  const server=new McpServer({name:'youtube-drive-mcp',version:VERSION});
  const add=(name:string,scope:string,description:string,schema:z.ZodObject,run:(args:any)=>Promise<unknown>,write=false)=>server.registerTool(name,{description,inputSchema:schema,annotations:{readOnlyHint:!write,destructiveHint:write,idempotentHint:!write||name.startsWith('upload_'),openWorldHint:true}},async args=>{
   if(!scopes.has(scope))throw createInsufficientScopeError([scope]);
-  try{const result=await run(args);const text=JSON.stringify(result);if(Buffer.byteLength(text)>2*1024*1024)throw new Error('TOO_LARGE');return {content:[{type:'text' as const,text}]};}catch(error){return {isError:true,content:[{type:'text' as const,text:JSON.stringify({error:errorCode(error),manageUrl:`${service.providers.config.origin}/connect`})}]};}
+  try{const result=await run(args);const text=JSON.stringify(result);if(Buffer.byteLength(text)>2*1024*1024)throw new Error('TOO_LARGE');return {...(typeof result==='object'&&result!==null&&'error' in result?{isError:true}:{}),content:[{type:'text' as const,text}]};}catch(error){return {isError:true,content:[{type:'text' as const,text:JSON.stringify({error:errorCode(error),manageUrl:`${service.providers.config.origin}/connect`})}]};}
  });
  const page=z.strictObject({pageToken:z.string().max(2048).optional(),pageSize:z.number().int().min(1).max(50).optional()});
  add('connection_status','drive:read','Read the independent main-account Drive and channel-account YouTube connection states. Google reauthorization does not require reconnecting this MCP.',z.strictObject({}),()=>service.status());
@@ -23,10 +23,28 @@ export function createServer(service:Service,scopes:Set<string>){
  add('youtube_update_video','youtube:write','Update only explicitly supplied title, description, tags or visibility. publishAt is an ISO timestamp for a private never-published video; null clears a schedule.',z.strictObject({videoId:z.string().max(128),title:z.string().min(1).max(100).optional(),description:z.string().max(5000).optional(),tags:z.array(z.string().max(450)).max(100).optional(),privacyStatus:z.enum(['private','unlisted','public']).optional(),publishAt:z.iso.datetime({offset:true}).nullable().optional(),madeForKids:z.boolean().optional(),containsSyntheticMedia:z.boolean().optional()}),args=>service.updateVideo(args),true);
  add('youtube_set_thumbnail','youtube:write','Set a pinned-channel video thumbnail using an image read from the main account Drive (JPEG/PNG, at most 2 MiB).',z.strictObject({videoId:z.string().max(128),driveFileId:z.string().max(256)}),args=>service.thumbnail(args),true);
  add('youtube_add_to_playlist','youtube:write','Add a pinned-channel video to a playlist owned by the same pinned channel; checks for existing membership first.',z.strictObject({playlistId:z.string().max(128),videoId:z.string().max(128)}),args=>service.addPlaylist(args),true);
- add('upload_drive_video','uploads:write','Create one durable upload of a private main-account Drive video to the separately connected YouTube channel and start sending chunks. Keep idempotencyKey on retries. If status is not complete, automatically keep calling upload_advance with the returned jobId until complete; do not start another upload. No video bytes pass through ChatGPT.',z.strictObject(uploadShape),async args=>{let result=await service.uploads.create(service.ownerId,args);if(result.status!=='complete')result=await advanceBatch(service,result.jobId);return result;},true);
+ add('upload_drive_video','uploads:write','Create one durable upload of a private main-account Drive video to the separately connected YouTube channel and start sending chunks. Keep idempotencyKey on retries. If status is not complete, automatically keep calling upload_advance with the returned jobId until complete; do not start another upload. No video bytes pass through ChatGPT.',z.strictObject(uploadShape),async args=>{const result=await service.uploads.create(service.ownerId,args);return result.status==='complete'?result:advanceBatch(service,result.jobId);},true);
  add('upload_advance','uploads:write','Continue the SAME durable upload job. Probes the original YouTube resumable session before sending bounded chunks. Automatically repeat this tool until status=complete. Network/quota interruptions retain the job; never create another upload to retry.',z.strictObject({jobId:z.uuid()}),args=>advanceBatch(service,args.jobId),true);
  add('upload_status','youtube:read','Read durable upload progress without starting an upload or retransmitting bytes.',z.strictObject({jobId:z.uuid()}),args=>service.uploads.status(service.ownerId,args.jobId));
  return server;
 }
-export async function advanceBatch(service:Service,jobId:string){const until=Date.now()+100000;let result=await service.uploads.status(service.ownerId,jobId);for(let i=0;i<8&&result.status!=='complete'&&Date.now()<until;i++)result=await service.uploads.advance(service.ownerId,jobId);return {...result,continuation:result.status==='complete'?null:{tool:'upload_advance',arguments:{jobId}}};}
+type UploadProgress=Awaited<ReturnType<Service['uploads']['status']>>;
+type UploadBatchResult=Partial<UploadProgress>&{jobId:string;error?:string;retrySameJob:boolean;continuation:{tool:'upload_advance';arguments:{jobId:string}}|null};
+export async function advanceBatch(service:Service,jobId:string):Promise<UploadBatchResult>{
+ const until=Date.now()+100000;let result:UploadProgress|undefined;
+ const continuation={tool:'upload_advance' as const,arguments:{jobId}};
+ try{
+  result=await service.uploads.status(service.ownerId,jobId);
+  for(let i=0;i<8&&['created','uploading'].includes(result.status)&&Date.now()<until;i++)result=await service.uploads.advance(service.ownerId,jobId);
+  const retrySameJob=['created','uploading'].includes(result.status);
+  return {...result,retrySameJob,continuation:retrySameJob?continuation:null};
+ }catch(error){
+  const code=errorCode(error);
+  // Preserve progress even when an advance response is lost; never create a replacement upload.
+  try{result=await service.uploads.status(service.ownerId,jobId);}catch{}
+  if(result?.status==='complete')return {...result,retrySameJob:false,continuation:null};
+  const retrySameJob=!!result&&['created','uploading'].includes(result.status)&&['UPLOAD_RETRY_SAME_JOB','UPLOAD_BUSY_RETRY_SAME_JOB','GOOGLE_TEMPORARILY_UNAVAILABLE','GOOGLE_QUOTA_OR_RATE_LIMIT','UPLOAD_COMPLETION_PENDING'].includes(code);
+  return {...result,jobId,error:code,lastError:result?.lastError??code,retrySameJob,continuation:retrySameJob?continuation:null};
+ }
+}
 export function handleMcp(request:Request,service:Service,scopes:Set<string>){return createMcpHandler(()=>createServer(service,scopes),{maxRequestBodySize:65536,responseMode:'json',maxSubscriptions:0,keepAliveMs:0}).fetch(request);}

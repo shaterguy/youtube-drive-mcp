@@ -57,7 +57,7 @@ export class Providers {
  }
  async request(ownerId:string,p:Provider,url:string,init:RequestInit={}):Promise<Response>{
   const u=new URL(url);if(u.protocol!=='https:'||u.username||u.password||u.port||!['www.googleapis.com','youtubeanalytics.googleapis.com'].includes(u.hostname))throw new AppError('INVALID_GOOGLE_ENDPOINT');
-  const send=async(token:string)=>{const headers=new Headers(init.headers);headers.set('Authorization',`Bearer ${token}`);return this.fetch(u.href,{...init,headers,redirect:'error',signal:AbortSignal.timeout(45000)});};
+  const send=async(token:string)=>{const headers=new Headers(init.headers);headers.set('Authorization',`Bearer ${token}`);return this.fetch(u.href,{...init,headers,redirect:u.hostname==='www.googleapis.com'&&u.pathname==='/upload/youtube/v3/videos'&&init.method==='PUT'?'manual':'error',signal:AbortSignal.timeout(45000)});};
   const token=await this.token(ownerId,p);let response=await send(token);if(response.status===401){await response.body?.cancel();response=await send(await this.token(ownerId,p,true,token));}return response;
  }
  async requireChannel(ownerId:string){const row=await this.connection(ownerId,'youtube');if(row.channel_id!==this.config.youtubeChannelId)throw new AppError('YOUTUBE_CHANNEL_MISMATCH',403);return row;}
