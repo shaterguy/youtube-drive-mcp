@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "youtube-drive": {
+      "type": "streamable-http",
+      "url": "https://youtube-drive-mcp.vercel.app/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {"mode": "cimd"},
+            "baseScopes": ["openid", "offline_access"],
+            "defaultScopes": ["openid", "offline_access", "drive:read", "youtube:read", "youtube:write", "uploads:write"]
+          }
+        }
+      }
+    }
+  }
+}

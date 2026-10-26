@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "youtube-drive-mcp",
+  "version": "0.1.0-dev1",
+  "description": "Upload private files from the owner's Google Drive to a separately authorized YouTube channel using resumable transfers.",
+  "author": {"name": "Jinsu"},
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "YouTube Drive MCP",
+        "shortDescription": "Drive 영상을 YouTube로 업로드",
+        "longDescription": "메인계정의 비공개 Drive 자료를 별도 연결한 채널 계정의 YouTube API로 업로드하고 전송 재개와 채널 관리를 지원합니다.",
+        "developerName": "Jinsu",
+        "capabilities": [],
+        "logo": "./assets/icon.svg",
+        "composerIcon": "./assets/icon.svg",
+        "defaultPrompt": "메인계정 Drive의 영상을 연결된 YouTube 채널에 업로드해줘."
+      }
+    }
+  }
+}
