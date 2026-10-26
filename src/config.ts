@@ -29,4 +29,4 @@ export function loadConfig(env: Record<string,string|undefined>): Config {
 }
 export function provider(value: unknown): Provider { if(value!=='drive' && value!=='youtube') throw new AppError('INVALID_PROVIDER'); return value; }
 export function errorCode(error: unknown) { return error instanceof AppError ? error.code : 'SERVICE_UNAVAILABLE'; }
-export function noStore(response: Response) { response.headers.set('Cache-Control','no-store');response.headers.set('Referrer-Policy','no-referrer');response.headers.set('X-Content-Type-Options','nosniff');return response; }
+export function noStore(response: Response) { const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');return new Response(response.body,{status:response.status,statusText:response.statusText,headers}); }
