@@ -4,6 +4,12 @@ Main-account Google Drive → separately authorized YouTube channel, hosted on V
 
 Version: `0.1.0-dev1` · Node 24 · MCP endpoint: `https://youtube-drive-mcp.vercel.app/mcp`
 
+## ChatGPT web and mobile connection
+
+Create the hosted connection in **ChatGPT Plugins → + → Add custom MCP server**. Use the endpoint above, choose **OAuth**, and retain the discovered **CIMD** client registration. Set required scopes to `openid` and `offline_access`; keep `drive:read`, `youtube:read`, `youtube:write`, and `uploads:write` as the default tool scopes. Complete account authorization, then use the resulting App-backed plugin in a new ChatGPT conversation.
+
+The `plugin/` folder is a portable MCP package for compatible Codex hosts. Uploading it through Plugin Creator alone can produce a **Desktop only** plugin; it does not register the hosted App required by ChatGPT web. Use the custom MCP connection flow for web use. Mobile availability must be checked on the same account after the hosted connection is installed and authorized. No desktop application or local MCP process is required by this Vercel server.
+
 ## Accounts and authorization
 
 Only the verified `OWNER_EMAIL` Google identity can sign in to this MCP. The login requests basic identity scopes. It does not link or replace the separately authorized channel account.
