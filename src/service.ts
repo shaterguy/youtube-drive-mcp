@@ -2,12 +2,13 @@ import {AppError} from './config.ts';
 import {Providers} from './providers.ts';
 import {jsonResponse,readBounded} from './http.ts';
 import {Uploads} from './uploads.ts';
+import {Analytics} from './analytics.ts';
 const fileId=(value:string)=>{if(!/^[A-Za-z0-9_-]{1,256}$/.test(value))throw new AppError('INVALID_DRIVE_FILE_ID');return value;};
 const youtubeId=(value:string)=>{if(!/^[A-Za-z0-9_-]{1,128}$/.test(value))throw new AppError('INVALID_YOUTUBE_ID');return value;};
 export class Service {
- readonly providers:Providers;readonly uploads:Uploads;readonly ownerId:string;
- constructor(providers:Providers,ownerId:string){this.providers=providers;this.uploads=new Uploads(providers.pool,providers);this.ownerId=ownerId;}
- async status(){return {ownerEmail:this.providers.config.ownerEmail,connections:await this.providers.list(this.ownerId),manageUrl:`${this.providers.config.origin}/connect`};}
+ readonly providers:Providers;readonly uploads:Uploads;readonly analytics:Analytics;readonly ownerId:string;
+ constructor(providers:Providers,ownerId:string){this.providers=providers;this.analytics=new Analytics(providers,ownerId);this.uploads=new Uploads(providers.pool,providers);this.ownerId=ownerId;}
+ async status(){return {ownerEmail:this.providers.config.ownerEmail,connections:await this.providers.list(this.ownerId),analytics:await this.analytics.status(),manageUrl:`${this.providers.config.origin}/connect`};}
  async driveList(input:{query?:string;pageToken?:string;pageSize?:number}){const u=new URL('https://www.googleapis.com/drive/v3/files');u.search=new URLSearchParams({q:input.query?`trashed = false and (${input.query})`:'trashed = false',pageSize:String(input.pageSize??30),fields:'nextPageToken,files(id,name,mimeType,size,modifiedTime,webViewLink,version)',orderBy:'modifiedTime desc',supportsAllDrives:'true',includeItemsFromAllDrives:'true',...(input.pageToken?{pageToken:input.pageToken}:{})}).toString();return jsonResponse(await this.providers.request(this.ownerId,'drive',u.href));}
  async driveMetadata(id:string){return jsonResponse(await this.providers.request(this.ownerId,'drive',`https://www.googleapis.com/drive/v3/files/${fileId(id)}?fields=id,name,mimeType,size,modifiedTime,version,md5Checksum,headRevisionId,webViewLink,capabilities(canDownload)&supportsAllDrives=true`));}
  async driveText(id:string){const meta=await this.driveMetadata(id);let url=`https://www.googleapis.com/drive/v3/files/${fileId(id)}?alt=media`;if(meta.mimeType==='application/vnd.google-apps.document')url=`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fplain`;else if(meta.mimeType==='application/vnd.google-apps.spreadsheet')url=`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fcsv`;else if(!meta.mimeType?.startsWith('text/')&&!['application/json','application/xml'].includes(meta.mimeType))throw new AppError('TEXT_FILE_REQUIRED');const response=await this.providers.request(this.ownerId,'drive',url);if(!response.ok)await jsonResponse(response);const text=Buffer.from(await readBounded(response.body,1024*1024)).toString('utf8');return {id,name:meta.name,mimeType:meta.mimeType,text};}

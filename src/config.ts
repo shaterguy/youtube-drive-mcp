@@ -1,9 +1,10 @@
-export const VERSION = '0.1.0-dev1';
+export const VERSION = '0.1.0-dev2';
 export const MCP_SCOPES = ['openid','offline_access','drive:read','youtube:read','youtube:write','uploads:write'] as const;
 export const PROVIDER_SCOPES = {
   drive: ['openid','email','https://www.googleapis.com/auth/drive.readonly'],
   youtube: ['openid','email','https://www.googleapis.com/auth/youtube.upload','https://www.googleapis.com/auth/youtube.force-ssl'],
 } as const;
+export const ANALYTICS_SCOPES = ['https://www.googleapis.com/auth/youtube.readonly','https://www.googleapis.com/auth/yt-analytics.readonly'] as const;
 export type Provider = keyof typeof PROVIDER_SCOPES;
 export class AppError extends Error {
   readonly code: string;

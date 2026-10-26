@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "youtube-drive-mcp",
-  "version": "0.1.0-dev1",
+  "version": "0.1.0-dev2",
   "description": "Upload private files from the owner's Google Drive to a separately authorized YouTube channel using resumable transfers.",
   "author": {"name": "Jinsu"},
   "extensions": {
