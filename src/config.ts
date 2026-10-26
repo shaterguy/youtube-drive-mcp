@@ -10,7 +10,7 @@ export class AppError extends Error {
   readonly status: number;
   constructor(code: string, status = 400) { super(code); this.code = code; this.status = status; }
 }
-export interface Config { origin: string; issuer: string; resource: string; databaseUrl: string; authSecret: string; encryptionKey: string; googleClientId: string; googleClientSecret: string; ownerEmail: string; youtubeChannelId: string }
+export interface Config { origin: string; issuer: string; resource: string; databaseUrl: string; authSecret: string; encryptionKey: string; googleClientId: string; googleClientSecret: string; googleAgentClientId: string; googleAgentClientSecret: string; ownerEmail: string; youtubeChannelId: string }
 export function loadConfig(env: Record<string,string|undefined>): Config {
   const get = (key: string) => {const value=env[key]; if(!value || value.trim()!==value) throw new AppError('CONFIGURATION_REQUIRED',503); return value;};
   const u = new URL(get('PUBLIC_ORIGIN'));
@@ -22,7 +22,10 @@ export function loadConfig(env: Record<string,string|undefined>): Config {
   const ownerEmail=get('OWNER_EMAIL').toLowerCase();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) throw new AppError('INVALID_CONFIGURATION',503);
   const youtubeChannelId=get('YOUTUBE_CHANNEL_ID');if(!/^UC[A-Za-z0-9_-]{22}$/.test(youtubeChannelId)) throw new AppError('INVALID_CONFIGURATION',503);
-  return {origin:u.origin,issuer:`${u.origin}/api/auth`,resource:`${u.origin}/mcp`,databaseUrl,authSecret,encryptionKey,googleClientId:get('GOOGLE_CLIENT_ID'),googleClientSecret:get('GOOGLE_CLIENT_SECRET'),ownerEmail,youtubeChannelId};
+  const googleClientId=get('GOOGLE_CLIENT_ID'),googleClientSecret=get('GOOGLE_CLIENT_SECRET');
+  const googleAgentClientId=get('GOOGLE_AGENT_CLIENT_ID'),googleAgentClientSecret=get('GOOGLE_AGENT_CLIENT_SECRET');
+  if(googleAgentClientId===googleClientId)throw new AppError('GOOGLE_OAUTH_CLIENTS_MUST_DIFFER',503);
+  return {origin:u.origin,issuer:`${u.origin}/api/auth`,resource:`${u.origin}/mcp`,databaseUrl,authSecret,encryptionKey,googleClientId,googleClientSecret,googleAgentClientId,googleAgentClientSecret,ownerEmail,youtubeChannelId};
 }
 export function provider(value: unknown): Provider { if(value!=='drive' && value!=='youtube') throw new AppError('INVALID_PROVIDER'); return value; }
 export function errorCode(error: unknown) { return error instanceof AppError ? error.code : 'SERVICE_UNAVAILABLE'; }

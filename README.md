@@ -10,10 +10,12 @@ Only the verified `OWNER_EMAIL` Google identity can sign in to this MCP. The log
 
 After signing in at `/connect`, connect Google Drive with the main account and YouTube with the channel-owning account. The service confirms that the channel account's `mine=true` result includes `YOUTUBE_CHANNEL_ID` before saving that connection. Drive receives `drive.readonly`; YouTube receives `youtube.upload` and `youtube.force-ssl`.
 
-Google OAuth callbacks to register on the application's web OAuth client:
+Create two separate Google OAuth web clients for the two workflows. The standard interactive client handles only the main account's login identity. Create a distinct client with Google's **Use this client for an AI-powered agent** setting enabled for MCP/automated API access. Do not reuse one client ID for both workflows.
 
-- `https://youtube-drive-mcp.vercel.app/api/auth/callback/google`
-- `https://youtube-drive-mcp.vercel.app/google/callback`
+- Standard interactive client (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`): register `https://youtube-drive-mcp.vercel.app/api/auth/callback/google`.
+- Agent API client (`GOOGLE_AGENT_CLIENT_ID` / `GOOGLE_AGENT_CLIENT_SECRET`): register `https://youtube-drive-mcp.vercel.app/google/callback`.
+
+Drive and YouTube both use the agent client, while retaining separate main-account and channel-account tokens in the vault. Agent authorization, code exchange, ID-token audience verification and refresh all use only the agent credentials. Configuration rejects identical interactive/agent client IDs.
 
 Enable Google Drive API and YouTube Data API v3 on this OAuth client's Google Cloud project. Use an **In production** Google OAuth audience for ongoing access. Google's Testing audience may issue grants that expire after seven days. A time-based grant expiry is retained and displayed when Google supplies it.
 
@@ -51,8 +53,10 @@ Create a **dedicated database**; do not point this service at another applicatio
 | `DATABASE_URL` | Postgres URL with `sslmode=require` or `verify-full` |
 | `BETTER_AUTH_SECRET` | Stable cryptographic secret, at least 32 bytes |
 | `TOKEN_ENCRYPTION_KEY` | Stable 32 random bytes encoded as base64url (43 characters) |
-| `GOOGLE_CLIENT_ID` | Web OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Matching web OAuth client secret |
+| `GOOGLE_CLIENT_ID` | Standard interactive web OAuth client ID, used only for login identity |
+| `GOOGLE_CLIENT_SECRET` | Matching standard interactive client secret |
+| `GOOGLE_AGENT_CLIENT_ID` | Separate agent-enabled web OAuth client ID for automated Drive/YouTube access |
+| `GOOGLE_AGENT_CLIENT_SECRET` | Matching agent client secret |
 
 Apply `sql/auth.sql` once and `sql/app.sql`, or run `npm run migrate` in the authorized deployment environment. The script applies the auth schema only when its `user` table does not exist. Never write real credentials into source, local examples, logs or test fixtures.
 
