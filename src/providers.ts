@@ -36,7 +36,7 @@ export class Providers {
    const channel=result.items?.find((x:any)=>x.id===this.config.youtubeChannelId);if(!channel)throw new AppError('YOUTUBE_CHANNEL_MISMATCH',403);channelId=channel.id;channelTitle=channel.snippet?.title??channelId;uploads=channel.contentDetails?.relatedPlaylists?.uploads??null;
   }
   const db=await this.pool.connect();try{await db.query('BEGIN');const old=(await db.query<ConnectionRow>('SELECT * FROM provider_connections WHERE owner_id=$1 AND provider=$2 FOR UPDATE',[ownerId,row.provider])).rows[0];
-   if(row.provider==='youtube'&&(consent.analytics||old?.scopes.some(s=>(ANALYTICS_SCOPES as readonly string[]).includes(s)))){if(!old||old.subject!==payload.sub||(consent.subject&&consent.subject!==payload.sub))throw new AppError('YOUTUBE_SUBJECT_MISMATCH',403);if(ANALYTICS_SCOPES.some(s=>!scopes.includes(s)))throw new AppError('GOOGLE_PARTIAL_GRANT',409);}
+   if(row.provider==='youtube'&&(consent.analytics||old?.scopes.some(s=>(ANALYTICS_SCOPES as readonly string[]).includes(s)))){if(!old||old.subject!==payload.sub||(consent.subject&&consent.subject!==payload.sub))throw new AppError('YOUTUBE_SUBJECT_MISMATCH',403);}
    const previous=old&&old.subject===payload.sub?this.cipher.open(old.refresh_cipher,this.context(ownerId,row.provider)):undefined;
    const refresh=tokens.refresh_token??previous;if(!refresh)throw new AppError('GOOGLE_OFFLINE_GRANT_REQUIRED',409);
    const ctx=this.context(ownerId,row.provider);
@@ -53,9 +53,15 @@ export class Providers {
    let result:any;try{result=await response.json();}catch{throw new AppError('GOOGLE_TEMPORARILY_UNAVAILABLE',503);}
    if(!response.ok){if(result.error==='invalid_grant'){await db.query(`UPDATE provider_connections SET auth_state='reauth_required',updated_at=now() WHERE owner_id=$1 AND provider=$2`,[ownerId,p]);await db.query('COMMIT');committed=true;throw new AppError('GOOGLE_REAUTH_REQUIRED',409);}if(response.status===429)throw new AppError('GOOGLE_QUOTA_OR_RATE_LIMIT',429);throw new AppError('GOOGLE_TEMPORARILY_UNAVAILABLE',503);}
    if(typeof result.access_token!=='string'||!Number.isFinite(result.expires_in)||result.expires_in<=0)throw new AppError('GOOGLE_TEMPORARILY_UNAVAILABLE',503);
+   let scopes=row.scopes;
+   if(Object.hasOwn(result,'scope')){
+    if(typeof result.scope!=='string'||result.scope.length>16384)throw new AppError('GOOGLE_TEMPORARILY_UNAVAILABLE',503);
+    scopes=[...new Set<string>(result.scope.split(' ').filter(Boolean))];
+    if(scopes.some(scope=>!/^[\x21\x23-\x5B\x5D-\x7E]+$/.test(scope)))throw new AppError('GOOGLE_TEMPORARILY_UNAVAILABLE',503);
+   }
    const refresh=typeof result.refresh_token==='string'&&result.refresh_token?this.cipher.seal(result.refresh_token,ctx):row.refresh_cipher;
    const refreshExpires=Number.isFinite(result.refresh_token_expires_in)?new Date(Date.now()+result.refresh_token_expires_in*1000):row.refresh_expires_at;
-   await db.query(`UPDATE provider_connections SET access_cipher=$3,refresh_cipher=$4,expires_at=$5,refresh_expires_at=$6,last_refresh_at=now(),updated_at=now() WHERE owner_id=$1 AND provider=$2`,[ownerId,p,this.cipher.seal(result.access_token,ctx),refresh,new Date(Date.now()+result.expires_in*1000),refreshExpires]);await db.query('COMMIT');committed=true;return result.access_token;
+   await db.query(`UPDATE provider_connections SET access_cipher=$3,refresh_cipher=$4,expires_at=$5,refresh_expires_at=$6,scopes=$7,last_refresh_at=now(),updated_at=now() WHERE owner_id=$1 AND provider=$2`,[ownerId,p,this.cipher.seal(result.access_token,ctx),refresh,new Date(Date.now()+result.expires_in*1000),refreshExpires,JSON.stringify(scopes)]);await db.query('COMMIT');committed=true;return result.access_token;
   }catch(error){if(!committed)await db.query('ROLLBACK');throw error;}finally{db.release();}
  }
  async request(ownerId:string,p:Provider,url:string,init:RequestInit={}):Promise<Response>{

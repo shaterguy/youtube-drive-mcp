@@ -12,10 +12,23 @@ export async function readBounded(stream:ReadableStream<Uint8Array>|null,max:num
   return Buffer.concat(chunks,size);
 }
 export async function googleError(response:Response):Promise<never> {
-  let reason='';try {const body=JSON.parse(Buffer.from(await readBounded(response.body,65536)).toString());reason=body.error?.errors?.[0]?.reason ?? body.error?.status ?? body.error ?? '';}catch{}
-  if(response.status===429 || ['quotaExceeded','dailyLimitExceeded','rateLimitExceeded','userRateLimitExceeded'].includes(reason)) throw new AppError('GOOGLE_QUOTA_OR_RATE_LIMIT',429);
+  const reasons:string[]=[];
+  try{
+   const body=JSON.parse(Buffer.from(await readBounded(response.body,65536)).toString());
+   if(Array.isArray(body.error?.errors))for(const error of body.error.errors)reasons.push(typeof error?.reason==='string'?error.reason:'unknown');
+   if(Array.isArray(body.error?.details))for(const detail of body.error.details)if(detail?.['@type']==='type.googleapis.com/google.rpc.ErrorInfo')reasons.push(typeof detail.reason==='string'?detail.reason:'unknown');
+  }catch{}
+  const classification=(reason:string)=>{
+   if(['quotaExceeded','dailyLimitExceeded','rateLimitExceeded','userRateLimitExceeded'].includes(reason))return 'GOOGLE_QUOTA_OR_RATE_LIMIT';
+   if(['insufficientPermissions','ACCESS_TOKEN_SCOPE_INSUFFICIENT'].includes(reason))return 'GOOGLE_INSUFFICIENT_SCOPE';
+   if(['accessNotConfigured','SERVICE_DISABLED'].includes(reason))return 'GOOGLE_API_CONFIGURATION_REQUIRED';
+   return reason==='forbidden'?'GOOGLE_PERMISSION_DENIED':'GOOGLE_FORBIDDEN_UNKNOWN';
+  };
+  const categories=new Set(reasons.map(classification));
+  const code=categories.size===1?[...categories][0]!:'GOOGLE_FORBIDDEN_UNKNOWN';
+  if(response.status===429 || code==='GOOGLE_QUOTA_OR_RATE_LIMIT') throw new AppError('GOOGLE_QUOTA_OR_RATE_LIMIT',429);
   if(response.status===401)throw new AppError('GOOGLE_REAUTH_REQUIRED',409);
-  if(response.status===403)throw new AppError('GOOGLE_PERMISSION_DENIED',403);
+  if(response.status===403)throw new AppError(code,403);
   if(response.status===404)throw new AppError('GOOGLE_RESOURCE_NOT_FOUND',404);
   if(response.status>=500)throw new AppError('GOOGLE_TEMPORARILY_UNAVAILABLE',503);
   throw new AppError('GOOGLE_REQUEST_FAILED',400);

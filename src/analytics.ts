@@ -59,6 +59,8 @@ export class Analytics{
   return {ready:!missingScopes.length&&row.auth_state==='active',state:missingScopes.length?'ANALYTICS_AUTH_REQUIRED':row.auth_state==='active'?'ready':'GOOGLE_REAUTH_REQUIRED',missingScopes};
  }
  private async access(){
+  await this.providers.requireChannel(this.ownerId);
+  await this.providers.token(this.ownerId,'youtube');
   const row=await this.providers.requireChannel(this.ownerId);
   if(ANALYTICS_SCOPES.some(s=>!row.scopes.includes(s)))throw new AppError('ANALYTICS_AUTH_REQUIRED',409);
   const current=await jsonResponse(await this.providers.request(this.ownerId,'youtube','https://www.googleapis.com/youtube/v3/channels?part=id&mine=true'));
@@ -66,7 +68,7 @@ export class Analytics{
  }
  private async response(url:string,init:RequestInit={}){
   const response=await this.providers.request(this.ownerId,'youtube',url,init);
-  if(response.status===403){try{await googleError(response);}catch(error){if(error instanceof AppError&&error.code==='GOOGLE_PERMISSION_DENIED')throw new AppError('ANALYTICS_AUTH_REQUIRED',409);throw error;}}
+  if(response.status===403){try{await googleError(response);}catch(error){if(error instanceof AppError&&error.code==='GOOGLE_INSUFFICIENT_SCOPE')throw new AppError('ANALYTICS_AUTH_REQUIRED',409);throw error;}}
   return jsonResponse(response);
  }
  async report(raw:unknown){

@@ -1,6 +1,6 @@
 {
   "name": "youtube-drive-mcp",
-  "version": "0.1.0-dev2",
+  "version": "0.1.0-dev3",
   "private": true,
   "type": "module",
   "engines": {"node": "24.x"},

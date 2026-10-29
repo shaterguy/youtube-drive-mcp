@@ -1,4 +1,4 @@
-export const VERSION = '0.1.0-dev2';
+export const VERSION = '0.1.0-dev3';
 export const MCP_SCOPES = ['openid','offline_access','drive:read','youtube:read','youtube:write','uploads:write'] as const;
 export const PROVIDER_SCOPES = {
   drive: ['openid','email','https://www.googleapis.com/auth/drive.readonly'],

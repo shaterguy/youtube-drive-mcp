@@ -2,7 +2,7 @@
 
 Main-account Google Drive → separately authorized YouTube channel, hosted on Vercel.
 
-Version: `0.1.0-dev2` · Node 24 · MCP endpoint: `https://youtube-drive-mcp.vercel.app/mcp`
+Version: `0.1.0-dev3` · Node 24 · MCP endpoint: `https://youtube-drive-mcp.vercel.app/mcp`
 
 ## ChatGPT web and mobile connection
 
@@ -31,9 +31,13 @@ Public Google OAuth branding pages are available without signing in: homepage `/
 
 MCP OAuth grants, rotating refresh tokens and signing keys live in Postgres. Google service tokens live in a separate AES-256-GCM vault with owner/provider/purpose binding. Keep the database and encryption/authentication secrets unchanged across deployments.
 
-Google access tokens refresh under a database row lock five minutes before expiry. A refresh response that omits `refresh_token` preserves the existing refresh token. Concurrent rejected access tokens reuse an already refreshed token. A 401 permits one forced refresh; quota and temporary errors retain the credential state. `invalid_grant` marks only that Google service as needing authorization. Reconnect that service at `/connect`; the MCP grant and upload jobs remain.
+Google access tokens refresh under a database row lock five minutes before expiry. A refresh response that omits `refresh_token` preserves the existing refresh token. An explicitly returned `scope` replaces the stored scope list atomically with the token; an omitted scope preserves it. Concurrent rejected access tokens reuse an already refreshed token. A 401 permits one forced refresh; quota and temporary errors retain the credential state. `invalid_grant` marks only that Google service as needing authorization. Reconnect that service at `/connect`; the MCP grant and upload jobs remain.
 
-MCP access tokens last five minutes; refresh tokens rotate with a rolling 365-day lifetime and a 30-second lost-response recovery window. Clients must request `offline_access`. These grants survive expiry/deletion of the browser login session, including the library's logout hook. A user-revoked grant, Google account restriction, explicit OAuth disconnect, prolonged inactivity beyond the refresh lifetime, or encryption-key loss still requires recovery. The application does not promise to override Google revocation.
+MCP access tokens last five minutes; refresh tokens rotate with a rolling 365-day lifetime and a 30-second lost-response recovery window. Clients must request `offline_access`. Token issuance and revocation pass through a bounded cross-instance Postgres advisory lock, preserving the maintained provider’s exact encrypted 30-second replay response for overlapping refresh requests. Queue/lock failures are temporary service failures, not reauthentication instructions. These grants survive expiry/deletion of the browser login session, including the library's logout hook. A user-revoked grant, Google account restriction, explicit OAuth disconnect, prolonged inactivity beyond the refresh lifetime, or encryption-key loss still requires recovery. The application does not promise to override Google revocation.
+
+Every new MCP JWT carries a durable grant generation. Explicit refresh revocation, active-family deletion and consent removal/reduction block subsequent MCP requests immediately, including JWTs that have not yet reached their five-minute expiry. A fresh authorization code replaces the old client token family and starts a new generation; old tokens never inherit it. Browser sign-out remains independent of offline MCP authorization.
+
+The additive grants migration seeds existing consent with legacy JWT compatibility so deployment needs no reconnection. It never overwrites an existing tombstone. Pre-migration revocations are not retroactively reconstructed; post-migration explicit revocation clears legacy compatibility immediately. Re-run the migration safely before deploying the new runtime. Google provider credentials and upload jobs are not migrated or deleted.
 
 ## Video transfer
 
@@ -64,7 +68,7 @@ Create a **dedicated database**; do not point this service at another applicatio
 | `GOOGLE_AGENT_CLIENT_ID` | Separate agent-enabled web OAuth client ID for automated Drive/YouTube access |
 | `GOOGLE_AGENT_CLIENT_SECRET` | Matching agent client secret |
 
-Apply `sql/auth.sql` once and `sql/app.sql`, or run `npm run migrate` in the authorized deployment environment. The script applies the auth schema only when its `user` table does not exist. Never write real credentials into source, local examples, logs or test fixtures.
+Apply `sql/auth.sql` once, then `sql/app.sql` and the repeatable `sql/grants.sql`, or run `npm run migrate` in the authorized deployment environment. The script applies the auth schema only when its `user` table does not exist. Never write real credentials into source, local examples, logs or test fixtures.
 
 `npm ci --ignore-scripts`, `npm test`, `npm run typecheck`, and `npm run build` are the reproducible verification commands. The optional emergency workflow runs on manual dispatch or a `ci-fallback/**` product branch and needs no production secrets. Ordinary pushes/PRs do not run GitHub Actions.
 
@@ -74,7 +78,7 @@ Secret-free fixtures exercise actual provider-role Authorization header injectio
 
 ## Channel analytics and bulk reports
 
-At `/connect`, optionally add `youtube.readonly` and `yt-analytics.readonly` to the existing channel grant using the targeted analytics consent control. Enable YouTube Analytics API and YouTube Reporting API in the same agent OAuth project. Ordinary YouTube reconnection keeps its existing scopes. Missing analytics permission returns ANALYTICS_AUTH_REQUIRED without changing upload credentials or MCP authorization; partial or wrong-subject reconsent leaves the previous credential intact. An expanded connection stays bound to that Google subject and the configured channel.
+At `/connect`, optionally add `youtube.readonly` and `yt-analytics.readonly` to the existing channel grant using the targeted analytics consent control. Enable YouTube Analytics API and YouTube Reporting API in the same agent OAuth project. Ordinary YouTube reconnection accepts the newly granted base scopes even when optional analytics permission was previously present. Missing analytics permission returns ANALYTICS_AUTH_REQUIRED without changing upload credentials or MCP authorization; partial or wrong-subject reconsent leaves the previous credential intact. An expanded connection stays bound to that Google subject and the configured channel. Analytics requests refresh tokens before rechecking granted scopes. Only confirmed insufficient-scope errors request analytics consent; `GOOGLE_API_CONFIGURATION_REQUIRED`, `GOOGLE_PERMISSION_DENIED` and `GOOGLE_FORBIDDEN_UNKNOWN` describe configuration, general forbidden and unclassified errors without prescribing reauthentication.
 
 youtube_analytics_report offers server-selected summary, daily, videos, traffic and single-video retention profiles with ordered ISO dates (at most 367 reporting days). All queries verify the current credential's pinned channel. Pacific reporting days are distinct from KST days. Sparse daily rows identify observed available dates; profiles without a day dimension report unknown data-through. Empty responses do not fabricate totals. Retention returns original provider bins; it does not derive an exact 30-second value.
 
